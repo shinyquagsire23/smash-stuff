@@ -2,7 +2,7 @@ import struct, sys, zlib, os
 from collections import OrderedDict
 from cStringIO import StringIO
 
-dtfn, lsfn, outdir = sys.argv[1:]
+dtfn, lsfn, outdir, dtlstype = sys.argv[1:]
 dtfp = open(dtfn, 'rb')
 lsfp = open(lsfn, 'rb')
 lsfp.read(4)
@@ -10,10 +10,13 @@ count, = struct.unpack('<I', lsfp.read(4))
 dt_offsets = OrderedDict()
 dt_total_size = 0
 for i in xrange(count):
-    crc, start, size = struct.unpack('<III', lsfp.read(12))
+    if dtlstype == 'u':
+        crc, start, size, dt_index, unk = struct.unpack('<IIIHH', lsfp.read(16)) #TODO: Apparently there's indexed dt files (ie dt00, dt01)
+    else:
+       crc, start, size = struct.unpack('<III', lsfp.read(12))
     dt_offsets[crc] = (start, size)
     dt_total_size += size
-assert lsfp.read(1) == ''
+#assert lsfp.read(1) == ''
 
 def get_file((start, size)):
     dtfp.seek(start)
@@ -104,7 +107,10 @@ if 1:
             start, size = None, None
             crc_path = 'data/' + path.rstrip('/') + ('/packed' if compressed else '')
             crc = stupidcrc(crc_path)
-            offset = dt_offsets[crc]
+            if crc in dt_offsets:
+                offset = dt_offsets[crc]
+            else:
+                offset = None
         else:
             offset = None
         offset_parts = offset_parts[:nesting_level - 1] + [offset]
@@ -119,7 +125,10 @@ if 1:
                     chunk_start, chunk_size = part
                     break
             else:
-                raise Exception("%s: nothing to look at" % path)
+                if dtlstype == 'u':
+                    continue
+                else:
+                    raise Exception("%s: nothing to look at" % path)
             assert off_in_chunk + cmp_size <= chunk_size
             dtfp.seek(chunk_start + off_in_chunk)
             cmp_data = dtfp.read(cmp_size)
