@@ -2,16 +2,18 @@ import struct, sys, zlib, os
 from collections import OrderedDict
 from cStringIO import StringIO
 
-dtfn, lsfn, outdir, dtlstype = sys.argv[1:]
+dtfn, lsfn, outdir = sys.argv[1:]
 dtfp = open(dtfn, 'rb')
 lsfp = open(lsfn, 'rb')
-lsfp.read(4)
+dtlstype = (struct.unpack('<I', lsfp.read(4))[0] & 0xFF0000) >> 16 #Magic + Version
 count, = struct.unpack('<I', lsfp.read(4))
 dt_offsets = OrderedDict()
 dt_total_size = 0
+print(dtlstype)
 for i in xrange(count):
-    if dtlstype == 'u':
+    if dtlstype == 2:
         crc, start, size, dt_index, unk = struct.unpack('<IIIHH', lsfp.read(16)) #TODO: Apparently there's indexed dt files (ie dt00, dt01)
+        
     else:
        crc, start, size = struct.unpack('<III', lsfp.read(12))
     dt_offsets[crc] = (start, size)
@@ -38,6 +40,13 @@ def stupidcrc(filename):
 resource = dt_offsets[stupidcrc('resource')]
 resource_data, was_compressed = get_file(resource)
 open('/tmp/resource.bin', 'wb').write(resource_data)
+
+print(hex(stupidcrc('patchlist')))
+patchlist = dt_offsets[stupidcrc('patchlist')]
+patchlist_data, was_compressed = get_file(patchlist)
+open('./patchlist', 'wb').write(patchlist_data)
+
+
 assert resource_data.startswith('RF')
 offset_to_compressed, = struct.unpack('<I', resource_data[4:8])
 rf, hl1, _, hl2, \
@@ -125,10 +134,7 @@ if 1:
                     chunk_start, chunk_size = part
                     break
             else:
-                if dtlstype == 'u':
                     continue
-                else:
-                    raise Exception("%s: nothing to look at" % path)
             assert off_in_chunk + cmp_size <= chunk_size
             dtfp.seek(chunk_start + off_in_chunk)
             cmp_data = dtfp.read(cmp_size)
