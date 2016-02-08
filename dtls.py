@@ -2,6 +2,10 @@ import struct, sys, zlib, os
 from collections import OrderedDict
 from cStringIO import StringIO
 
+if(len(sys.argv) < 4):
+    print("Usage: python dtls.py dt ls <extract-directory>")
+    sys.exit(0)
+
 dtfn, lsfn, outdir = sys.argv[1:]
 dtfp = open(dtfn, 'rb')
 lsfp = open(lsfn, 'rb')
