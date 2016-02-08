@@ -9,7 +9,13 @@ dtlstype = (struct.unpack('<I', lsfp.read(4))[0] & 0xFF0000) >> 16 #Magic + Vers
 count, = struct.unpack('<I', lsfp.read(4))
 dt_offsets = OrderedDict()
 dt_total_size = 0
-print(dtlstype)
+
+if not os.path.exists(outdir):
+    os.makedirs(outdir)
+    
+if not os.path.exists('./tmp/'):
+    os.makedirs('./tmp/')
+
 for i in xrange(count):
     if dtlstype == 2:
         crc, start, size, dt_index, unk = struct.unpack('<IIIHH', lsfp.read(16)) #TODO: Apparently there's indexed dt files (ie dt00, dt01)
@@ -39,13 +45,11 @@ def stupidcrc(filename):
 
 resource = dt_offsets[stupidcrc('resource')]
 resource_data, was_compressed = get_file(resource)
-open('/tmp/resource.bin', 'wb').write(resource_data)
+open('./tmp/resource.bin', 'wb').write(resource_data)
 
-print(hex(stupidcrc('patchlist')))
 patchlist = dt_offsets[stupidcrc('patchlist')]
 patchlist_data, was_compressed = get_file(patchlist)
 open('./patchlist', 'wb').write(patchlist_data)
-
 
 assert resource_data.startswith('RF')
 offset_to_compressed, = struct.unpack('<I', resource_data[4:8])
@@ -56,7 +60,7 @@ start_of_strs_plus, len_strs \
 
 resource_dec = zlib.decompress(resource_data[offset_to_compressed:])
 rdfp = StringIO(resource_dec)
-open('/tmp/resource.dec', 'wb').write(resource_dec)
+open('./tmp/resource.dec', 'wb').write(resource_dec)
 
 rdfp.seek(start_of_strs_plus - hl1)
 num_segments, = struct.unpack('<I', rdfp.read(4))
